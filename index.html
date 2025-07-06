@@ -193,11 +193,71 @@
       </div>
     </section>
   </main>
+  <!-- GSAP library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/gsap.min.js"></script>
 
   <script>
     function toggleMenu() {
       document.getElementById('main-nav').classList.toggle('open');
     }
+
+    //GSAP animations
+    window.addEventListener('load', () => {
+      // Logo drops in from above
+      gsap.from('.logo', {
+        opacity: 0,
+        y: -30,
+        duration: 0.8,
+        ease: 'power3.out'
+      });
+
+      // Nav links fade/slide down in a stagger
+      gsap.from('nav a', {
+        opacity: 0,
+        y: -10,
+        duration: 0.6,
+        ease: 'power2.out',
+        stagger: 0.1,
+        delay: 0.4
+      });
+
+      // “Get Started” button pop
+      gsap.from('.btn-getstarted', {
+        scale: 0.7,
+        opacity: 0,
+        duration: 0.6,
+        ease: 'back.out(1.7)',
+        delay: 0.8
+      });
+
+      // Hero heading slides in from the left
+      gsap.from('.hero h1', {
+        x: -50,
+        opacity: 0,
+        duration: 1,
+        ease: 'power3.out',
+        delay: 1
+      });
+
+      // Hero paragraph fades up
+      gsap.from('.hero p', {
+        y: 20,
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out',
+        delay: 1.2
+      });
+
+      // Hero buttons bounce in staggered
+      gsap.from('.hero .ctas button', {
+        scale: 0.5,
+        opacity: 0,
+        duration: 0.7,
+        ease: 'back.out(1.7)',
+        stagger: 0.2,
+        delay: 1.4
+      });
+    });
   </script>
 </body>
 </html>
