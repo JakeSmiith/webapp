@@ -241,112 +241,94 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/ScrollTrigger.min.js"></script>
 
   <script>
-    gsap.registerPlugin(ScrollTrigger);
-
-    // DOM references
-    const btnOpen = document.getElementById('btn-open-modal');
-    const backdrop = document.getElementById('modal-backdrop');
-    const btnCancel = document.getElementById('btn-cancel');
-    const form = document.getElementById('project-form');
-    const grid = document.getElementById('grid');
-    const filtersBar = document.getElementById('filters');
-
-    // Show / hide modal
-    btnOpen.addEventListener('click', () => backdrop.style.display = 'flex');
-    btnCancel.addEventListener('click', () => backdrop.style.display = 'none');
-
-    // Utility: create an element with classes
+    // 1) Helper to create elements
     function el(tag, cls = [], attrs = {}) {
       const e = document.createElement(tag);
       cls.forEach(c => e.classList.add(c));
-      Object.entries(attrs).forEach(([k,v])=> e.setAttribute(k,v));
+      Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
       return e;
     }
 
-    // Handle new project submission
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const title = form.title.value.trim();
-      const tags = form.categories.value.split(',')
-                       .map(t=>t.trim()).filter(t=>t);
-      const file = form.image.files[0];
-      if (!title || !tags.length || !file) return;
+    // 2) Render a single project card
+    const grid = document.getElementById('grid');
+    function renderCard({ title, tags, image_base64 }) {
+      const card = el('div', ['card']);
+      card.dataset.category = tags.join(' ');
 
-      // read image
-      const reader = new FileReader();
-      reader.onload = () => {
-        const imgSrc = reader.result;
+      // image
+      card.appendChild(el('img', [], { src: image_base64, alt: title }));
 
-        // create card
-        const card = el('div', ['card']);
-        card.dataset.category = tags.join(' ');
-
-        const img = el('img', [], { src: imgSrc, alt: title });
-        card.appendChild(img);
-
-        // like badge
-        const badge = el('div', ['badge']);
-        badge.textContent = '❤️ 0';
-        badge.addEventListener('click', () => {
-          let count = +badge.textContent.replace(/\D/g,'') + 1;
-          badge.textContent = `❤️ ${count}`;
-        });
-        card.appendChild(badge);
-
-        // content
-        const content = el('div', ['card-content']);
-        const h3 = el('h3');
-        h3.textContent = title;
-        content.appendChild(h3);
-
-        const tagsContainer = el('div', ['tags']);
-        tags.forEach(t => {
-          const span = el('span', ['tag']);
-          span.textContent = t;
-          tagsContainer.appendChild(span);
-        });
-        content.appendChild(tagsContainer);
-        card.appendChild(content);
-
-        // append and animate
-        grid.appendChild(card);
-        gsap.from(card, {
-          opacity: 0, y: 20, duration: 0.6, ease: 'power2.out'
-        });
-
-        // ensure filter button exists for new tags
-        tags.forEach(t => {
-          if (![...filtersBar.children].some(b=>b.textContent===t)) {
-            const btn = el('button', ['filter-button']);
-            btn.textContent = t;
-            filtersBar.appendChild(btn);
-            bindFilter(btn);
-          }
-        });
-
-        // reset & close form
-        form.reset();
-        backdrop.style.display = 'none';
+      // like badge
+      const badge = el('div', ['badge']);
+      badge.textContent = '❤️ 0';
+      badge.onclick = () => {
+        const n = parseInt(badge.textContent.replace(/\D/g, '')) + 1;
+        badge.textContent = `❤️ ${n}`;
       };
-      reader.readAsDataURL(file);
-    });
+      card.appendChild(badge);
 
-    // Filter logic
-    function bindFilter(btn) {
-      btn.addEventListener('click', () => {
-        [...filtersBar.children].forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const cat = btn.textContent.trim();
-        [...grid.children].forEach(card => {
-          card.style.display = (cat === 'All'
-            || card.dataset.category.includes(cat))
-            ? 'flex' : 'none';
-        });
-      });
+      // content (title + tags)
+      const content = el('div', ['card-content']);
+      content.appendChild(Object.assign(el('h3'), { textContent: title }));
+
+      const tagsContainer = el('div', ['tags']);
+      tags.forEach(t => 
+        tagsContainer.appendChild(Object.assign(el('span', ['tag']), { textContent: t }))
+      );
+      content.appendChild(tagsContainer);
+
+      card.appendChild(content);
+      grid.appendChild(card);
+
+      // animate in
+      gsap.from(card, { opacity: 0, y: 20, duration: 0.6, ease: 'power2.out' });
     }
 
-    // bind initial “All” filter
-    bindFilter(filtersBar.querySelector('.filter-button'));
+    // 3) Fetch and display all existing projects
+    window.addEventListener('DOMContentLoaded', async () => {
+      const res = await fetch('/api/projects');
+      if (!res.ok) return console.error('Failed to load projects');
+      const projects = await res.json();
+      projects.forEach(renderCard);
+    });
+
+    // 4) Wire up the “Add Project” modal & form
+    const backdrop = document.getElementById('modal-backdrop');
+    document.getElementById('btn-open-modal').onclick = () => backdrop.style.display = 'flex';
+    document.getElementById('btn-cancel').onclick     = () => backdrop.style.display = 'none';
+
+    document.getElementById('project-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form  = e.target;
+      const title = form.title.value.trim();
+      const tags  = form.categories.value.split(',').map(t=>t.trim()).filter(Boolean);
+      const file  = form.image.files[0];
+      if (!title || !tags.length || !file) return;
+
+      // convert file to Base64
+      const image_base64 = await new Promise(r => {
+        const reader = new FileReader();
+        reader.onload = () => r(reader.result);
+        reader.readAsDataURL(file);
+      });
+
+      // POST it to your backend
+      const resp = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, tags, image_base64 })
+      });
+      if (!resp.ok) {
+        console.error('Upload failed:', await resp.text());
+        return;
+      }
+
+      // render new card & reset
+      renderCard({ title, tags, image_base64 });
+      form.reset();
+      backdrop.style.display = 'none';
+    });
   </script>
+
 </body>
 </html>
