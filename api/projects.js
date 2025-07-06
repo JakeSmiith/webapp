@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('projects')
-      .select('id, title, tags, image_url, created_at')
+      .select('id, title, tags, image_base64, created_at')
       .order('created_at', { ascending: false })
 
     if (error) {
