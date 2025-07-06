@@ -36,7 +36,7 @@ export default async function handler(req, res) {
       const { data, error } = await supabase
         .from('projects')
         .insert([{ title, tags, image_base64 }])
-        .select('id, created_at')
+        .select('id, title, tags, image_base64, created_at')
         .single()
 
       if (error) throw error
